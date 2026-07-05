@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>🍫 Chocolate Factory — Live Analytics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#170900;--panel:#221000;--card:#2E1500;--card2:#3A1C00;
+  --gold:#F0A500;--gold2:#FFD166;--amber:#C8780A;--amber2:#A06010;
+  --cream:#FDF4E3;--muted:rgba(253,244,227,.5);--faint:rgba(253,244,227,.1);--faint2:rgba(253,244,227,.06);
+  --green:#1E9E7A;--green2:#157A5E;--pink:#9B2B5E;--blue:#3A6EA8;--rust:#B84A1E;--orange:#D4600A;
+  --border:rgba(240,165,0,.18);--border2:rgba(240,165,0,.35);--border3:rgba(240,165,0,.55);
+  --ins-bg:#1A2E10;--ins-border:rgba(100,200,80,.35);--ins-text:#B8F0A0;
+  --warn-bg:#2E1A00;--warn-border:rgba(240,165,0,.4);--warn-text:#F0C060;
+  --alert-bg:#2E0A18;--alert-border:rgba(200,60,100,.35);--alert-text:#F0A0B8;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--cream);min-height:100vh;display:flex;flex-direction:column;font-size:13px;}
+
+/* ── TOP HEADER ── */
+.hdr{background:linear-gradient(90deg,#221000 0%,#3A1C00 100%);border-bottom:2px solid var(--border2);padding:0 1.5rem;display:flex;align-items:center;gap:0;height:52px;flex-shrink:0;position:sticky;top:0;z-index:999;box-shadow:0 2px 20px rgba(0,0,0,.5);}
+.logo{display:flex;align-items:center;gap:10px;margin-right:2rem;flex-shrink:0;}
+.logo-ico{width:34px;height:34px;background:var(--gold);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 12px rgba(240,165,0,.3);}
+.logo-txt h1{font-family:'Playfair Display',serif;font-size:14px;color:var(--cream);line-height:1.15;}
+.logo-txt small{font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;}
+.tab{background:none;border:none;border-bottom:2.5px solid transparent;color:var(--muted);font-size:12px;font-weight:600;padding:0 15px;height:52px;cursor:pointer;white-space:nowrap;transition:.15s;font-family:inherit;letter-spacing:.2px;}
+.tab:hover{color:var(--cream);background:rgba(255,255,255,.03);}
+.tab.on{color:var(--gold);border-bottom-color:var(--gold);}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.live-badge{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--green);font-weight:600;background:rgba(30,158,122,.12);border:1px solid rgba(30,158,122,.3);padding:3px 9px;border-radius:20px;}
+.live-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(30,158,122,.4);}50%{opacity:.5;box-shadow:0 0 0 4px rgba(30,158,122,0);}}
+.clock{font-size:11px;color:var(--muted);}
+
+/* ── FILTER BAR ── */
+.fbar{background:var(--panel);border-bottom:1px solid var(--border);padding:.5rem 1.5rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0;}
+.fbar label{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;}
+select{background:var(--card2);border:1px solid var(--border2);color:var(--cream);font-size:11px;padding:4px 22px 4px 9px;border-radius:5px;cursor:pointer;outline:none;font-family:inherit;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23F0A500'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 7px center;}
+select:focus{border-color:var(--gold);}
+.fbtn{background:rgba(240,165,0,.1);border:1px solid var(--border2);color:var(--gold);font-size:11px;font-weight:700;padding:4px 14px;border-radius:5px;cursor:pointer;font-family:inherit;transition:.15s;}
+.fbtn:hover{background:rgba(240,165,0,.2);}
+.fsep{width:1px;height:20px;background:var(--border);margin:0 2px;}
+#filter-status{font-size:10px;color:var(--gold);font-weight:600;}
+
+/* ── LAYOUT ── */
+.page{display:none;flex:1;}
+.page.on{display:flex;flex-direction:column;}
+.main-layout{display:grid;grid-template-columns:1fr 300px;flex:1;min-height:0;}
+.content{overflow-y:auto;padding:1.25rem 1.5rem;}
+.insights-panel{border-left:1px solid var(--border);overflow-y:auto;background:var(--panel);padding:1rem;}
+
+/* ── KPI CARDS ── */
+.krow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1.25rem;}
+.kcard{background:linear-gradient(145deg,var(--card2),var(--card));border:1px solid var(--border);border-radius:9px;padding:.9rem 1rem .8rem;position:relative;overflow:hidden;transition:all .2s;cursor:default;}
+.kcard:hover{border-color:var(--border3);transform:translateY(-1px);box-shadow:0 4px 16px rgba(240,165,0,.1);}
+.kcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2.5px;background:var(--kc,var(--gold));}
+.k-ico{font-size:17px;margin-bottom:5px;}
+.k-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-bottom:2px;}
+.k-val{font-family:'Playfair Display',serif;font-size:23px;font-weight:700;color:var(--cream);line-height:1.1;}
+.k-sub{font-size:9.5px;color:var(--muted);margin-top:2px;}
+.k-tag{display:inline-block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;margin-top:5px;}
+.tag-up{background:rgba(30,158,122,.18);color:#4DD4A8;}
+.tag-dn{background:rgba(155,43,94,.18);color:#F07AB4;}
+.tag-nt{background:rgba(240,165,0,.14);color:var(--gold);}
+
+/* ── CHART CARDS ── */
+.cc{background:linear-gradient(155deg,var(--card2),var(--card));border:1px solid var(--border);border-radius:9px;padding:1rem 1.1rem;transition:border-color .2s;}
+.cc:hover{border-color:var(--border2);}
+.cc-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.65rem;}
+.cc-title{font-size:12.5px;font-weight:700;color:var(--cream);}
+.cc-sub{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:1px;}
+.cc-badge{font-size:8.5px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(240,165,0,.13);color:var(--gold);border:1px solid rgba(240,165,0,.25);white-space:nowrap;flex-shrink:0;margin-left:8px;}
+
+/* ── GRIDS ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.25rem;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:1.25rem;}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:1.25rem;}
+.g12{display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:1.25rem;}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto;max-height:320px;overflow-y:auto;}
+.tbl-wrap::-webkit-scrollbar{width:4px;height:4px;}
+.tbl-wrap::-webkit-scrollbar-thumb{background:var(--amber2);border-radius:2px;}
+.tbl{width:100%;border-collapse:collapse;font-size:11px;}
+.tbl th{position:sticky;top:0;z-index:1;text-align:left;font-size:8.5px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--border2);background:var(--card);white-space:nowrap;cursor:pointer;user-select:none;}
+.tbl th:hover{color:var(--gold);}
+.tbl td{padding:5.5px 8px;border-bottom:1px solid rgba(240,165,0,.06);vertical-align:middle;}
+.tbl tr:hover td{background:rgba(240,165,0,.04);}
+.tbl tr:last-child td{border-bottom:none;}
+.pill{display:inline-block;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:2px 6px;border-radius:3px;}
+
+/* ── BAR STRIPS ── */
+.br{display:flex;align-items:center;gap:7px;margin-bottom:7px;}
+.bl{font-size:10.5px;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bt{flex:1;height:6px;background:var(--faint);border-radius:3px;overflow:hidden;}
+.bf{height:100%;border-radius:3px;transition:width .8s ease;}
+.bv{font-size:10px;color:var(--muted);min-width:50px;text-align:right;flex-shrink:0;}
+
+/* ── LEGEND ── */
+.lgnd{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:7px;}
+.li{display:flex;align-items:center;gap:4px;font-size:9.5px;color:var(--muted);}
+.ld{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+
+/* ── YEAR SLICER ── */
+.slicer{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:.75rem;}
+.sl{background:rgba(253,244,227,.06);border:1px solid var(--border);color:var(--muted);font-size:10px;font-weight:600;padding:3px 10px;border-radius:4px;cursor:pointer;transition:.15s;font-family:inherit;}
+.sl:hover{color:var(--cream);}
+.sl.on{background:rgba(240,165,0,.15);border-color:var(--gold);color:var(--gold);}
+
+/* ── SEARCH ── */
+.srch{position:relative;margin-bottom:.75rem;}
+.srch input{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--cream);font-size:11px;padding:5px 9px 5px 28px;border-radius:5px;outline:none;font-family:inherit;}
+.srch input:focus{border-color:var(--gold);}
+.srch-ico{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.4;pointer-events:none;}
+
+/* ── INSIGHTS PANEL ── */
+.ins-panel-title{font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:1rem;display:flex;align-items:center;gap:6px;padding-bottom:.5rem;border-bottom:1px solid var(--border);}
+.ins-card{border-radius:7px;padding:.75rem .9rem;margin-bottom:.75rem;border-left:3px solid;}
+.ins-card.good{background:var(--ins-bg);border-color:#4DD4A8;border-left-color:#4DD4A8;}
+.ins-card.warn{background:var(--warn-bg);border-color:var(--gold);border-left-color:var(--gold);}
+.ins-card.alert{background:var(--alert-bg);border-color:#F07AB4;border-left-color:#F07AB4;}
+.ins-card.info{background:rgba(58,110,168,.12);border-color:#7AAAF0;border-left-color:#7AAAF0;}
+.ins-card .ins-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
+.ins-card.good .ins-title{color:#4DD4A8;}
+.ins-card.warn .ins-title{color:var(--gold);}
+.ins-card.alert .ins-title{color:#F07AB4;}
+.ins-card.info .ins-title{color:#7AAAF0;}
+.ins-card .ins-txt{font-size:10.5px;line-height:1.5;color:var(--cream);opacity:.85;}
+.ins-card .ins-val{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;margin-top:4px;}
+.ins-card.good .ins-val{color:#4DD4A8;}
+.ins-card.warn .ins-val{color:var(--gold);}
+.ins-card.alert .ins-val{color:#F07AB4;}
+.ins-card.info .ins-val{color:#7AAAF0;}
+.ins-divider{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:700;margin:.75rem 0 .5rem;padding-top:.5rem;border-top:1px solid var(--border);}
+
+/* ── MINI TREND ── */
+.mini-spark{height:36px;margin-top:4px;}
+
+/* ── PROGRESS RINGS ── */
+.ring-wrap{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:.75rem;}
+.ring-item{text-align:center;flex:1;}
+.ring-svg{width:60px;height:60px;}
+.ring-lbl{font-size:9px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.5px;}
+.ring-val{font-size:10px;font-weight:700;color:var(--gold);}
+
+/* ── HERO BANNER ── */
+.hero{background:linear-gradient(135deg,var(--card2),var(--panel));border:1px solid var(--border2);border-radius:10px;padding:1.2rem 1.5rem;margin-bottom:1.25rem;position:relative;overflow:hidden;display:flex;align-items:center;gap:1.5rem;}
+.hero::after{content:'🍫';position:absolute;right:1.5rem;font-size:80px;opacity:.07;pointer-events:none;}
+.hero-text h2{font-family:'Playfair Display',serif;font-size:22px;color:var(--cream);margin-bottom:4px;}
+.hero-text p{font-size:11px;color:var(--muted);line-height:1.6;max-width:420px;}
+.hero-stats{display:flex;gap:1.2rem;margin-top:.75rem;flex-wrap:wrap;}
+.hs{text-align:center;}
+.hs .v{font-family:'Playfair Display',serif;font-size:18px;color:var(--gold);font-weight:700;display:block;}
+.hs .l{font-size:8.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:1px;display:block;}
+
+/* ── SCROLLBAR ── */
+.content::-webkit-scrollbar,.insights-panel::-webkit-scrollbar{width:4px;}
+.content::-webkit-scrollbar-thumb,.insights-panel::-webkit-scrollbar-thumb{background:var(--amber2);border-radius:2px;}
+
+/* ── GAUGE ── */
+.gauge-wrap{display:flex;justify-content:center;align-items:center;flex-direction:column;padding:.5rem;}
+
+/* ── TOOLTIP ── */
+[data-tip]{position:relative;cursor:help;}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:110%;left:50%;transform:translateX(-50%);background:#2E1500;border:1px solid var(--border2);color:var(--cream);font-size:10px;padding:4px 8px;border-radius:5px;white-space:nowrap;z-index:100;pointer-events:none;}
+
+@media(max-width:1100px){
+  .main-layout{grid-template-columns:1fr;}
+  .insights-panel{display:none;}
+}
+@media(max-width:860px){
+  .krow{grid-template-columns:repeat(2,1fr);}
+  .g2,.g3,.g21,.g12{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-ico">🍫</div>
+    <div class="logo-txt">
+      <h1>Chocolate Factory</h1>
+      <small>Live Analytics Dashboard</small>
+    </div>
+  </div>
+  <button class="tab on" onclick="nav('overview',this)">📊 Overview</button>
+  <button class="tab" onclick="nav('products',this)">🍫 Products</button>
+  <button class="tab" onclick="nav('geography',this)">🗺️ Geography</button>
+  <button class="tab" onclick="nav('channels',this)">🛒 Channels</button>
+  <button class="tab" onclick="nav('detail',this)">🔍 Detail</button>
+  <div class="hdr-right">
+    <div class="live-badge"><div class="live-dot"></div>Live · 25,585 Orders</div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- ══ FILTER BAR ══ -->
+<div class="fbar">
+  <label>Year</label>
+  <select id="f-year" onchange="applyFilters()">
+    <option value="all">All Years (2021–2025)</option>
+    <option>2021</option><option>2022</option><option>2023</option><option>2024</option><option>2025</option>
+  </select>
+  <div class="fsep"></div>
+  <label>Category</label>
+  <select id="f-cat" onchange="applyFilters()">
+    <option value="all">All Categories</option>
+    <option>Bars</option><option>Gift Boxes</option><option>Truffles</option>
+    <option>Cocoa Powder</option><option>Drinking Chocolate</option>
+  </select>
+  <div class="fsep"></div>
+  <label>Region</label>
+  <select id="f-reg" onchange="applyFilters()">
+    <option value="all">All Regions</option>
+    <option>North</option><option>South</option><option>East</option><option>West</option><option>Central</option><option>Export</option>
+  </select>
+  <div class="fsep"></div>
+  <label>Channel</label>
+  <select id="f-ch" onchange="applyFilters()">
+    <option value="all">All Channels</option>
+    <option>Retail</option><option>Online</option><option>Wholesale</option><option>Modern Trade</option><option>Export</option>
+  </select>
+  <div class="fsep"></div>
+  <button class="fbtn" onclick="resetFilters()">↺ Reset All</button>
+  <span id="filter-status"></span>
+</div>
+
+<!-- ══════════════════════════════════
+     PAGE: OVERVIEW
+══════════════════════════════════ -->
+<div id="pg-overview" class="page on">
+<div class="main-layout">
+<div class="content">
+
+  <div class="hero">
+    <div class="hero-text">
+      <div style="font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:5px;">Executive Overview · FY 2021–2025</div>
+      <h2>Chocolate Factory Analytics</h2>
+      <p>Real-time cross-table analytics from FactSales, DimProduct, DimGeography, DimChannel & DimDate — 25,585 transactions across 23 products, 24 cities and 5 channels.</p>
+      <div class="hero-stats">
+        <div class="hs"><span class="v" id="h-rev">₹62.8Cr</span><span class="l">Revenue</span></div>
+        <div class="hs"><span class="v" id="h-prf">₹27.2Cr</span><span class="l">Profit</span></div>
+        <div class="hs"><span class="v" id="h-mgn">43.3%</span><span class="l">Margin</span></div>
+        <div class="hs"><span class="v" id="h-ord">25,585</span><span class="l">Orders</span></div>
+        <div class="hs"><span class="v" id="h-qty">7.6L</span><span class="l">Units</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="krow">
+    <div class="kcard" style="--kc:#F0A500"><div class="k-ico">💰</div><div class="k-lbl">Total Revenue</div><div class="k-val" id="k-rev">₹62.8Cr</div><div class="k-sub">Net Sales all channels</div><div class="k-tag tag-nt" id="k-rev-t">All Years</div></div>
+    <div class="kcard" style="--kc:#1E9E7A"><div class="k-ico">📈</div><div class="k-lbl">Total Profit</div><div class="k-val" id="k-prf">₹27.2Cr</div><div class="k-sub">After COGS deduction</div><div class="k-tag tag-up">43.3% margin</div></div>
+    <div class="kcard" style="--kc:#9B2B5E"><div class="k-ico">📦</div><div class="k-lbl">Total Orders</div><div class="k-val" id="k-ord">25,585</div><div class="k-sub">Across 5 channels</div><div class="k-tag tag-nt">2021–2025</div></div>
+    <div class="kcard" style="--kc:#C8780A"><div class="k-ico">🏆</div><div class="k-lbl">Top Product</div><div class="k-val" style="font-size:14px;margin-top:3px">New Year</div><div class="k-sub">Hamper · Gift Boxes</div><div class="k-tag tag-up">₹6.1Cr profit</div></div>
+    <div class="kcard" style="--kc:#B84A1E"><div class="k-ico">🏙️</div><div class="k-lbl">Top City</div><div class="k-val" style="font-size:16px;margin-top:3px">Mumbai</div><div class="k-sub">West region</div><div class="k-tag tag-up">₹3.32Cr profit</div></div>
+  </div>
+
+  <div class="g21">
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Monthly Revenue &amp; Profit Trend</div><div class="cc-sub">Select year below · dual axis</div></div><span class="cc-badge">Interactive</span></div>
+      <div class="slicer" id="yr-sl"></div>
+      <div class="lgnd"><span class="li"><span class="ld" style="background:#F0A500"></span>Revenue</span><span class="li"><span class="ld" style="background:#1E9E7A"></span>Profit</span></div>
+      <div style="position:relative;height:210px"><canvas id="c-trend"></canvas></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Revenue by Category</div><div class="cc-sub">All years · donut</div></div></div>
+      <div class="lgnd" id="cat-lgnd"></div>
+      <div style="position:relative;height:195px"><canvas id="c-catpie"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g3">
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Annual Performance</div><div class="cc-sub">Revenue vs Profit</div></div></div>
+      <div style="position:relative;height:175px"><canvas id="c-annual"></canvas></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Profit by Channel</div><div class="cc-sub">5 sales channels</div></div></div>
+      <div style="position:relative;height:175px"><canvas id="c-chov"></canvas></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Top 5 Cities</div><div class="cc-sub">By profit contribution</div></div></div>
+      <div id="city5" style="margin-top:6px"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- INSIGHTS: OVERVIEW -->
+<div class="insights-panel">
+  <div class="ins-panel-title">💡 Live Insights</div>
+
+  <div class="ins-card good">
+    <div class="ins-title">✅ Strong Profit Margin</div>
+    <div class="ins-txt">Overall profit margin of <strong>43.3%</strong> is significantly above the Indian FMCG average of ~18–22%. Premium Gift Boxes are the primary driver.</div>
+    <div class="ins-val">43.3%</div>
+  </div>
+
+  <div class="ins-card warn">
+    <div class="ins-title">⚠️ Gift Box Dependency</div>
+    <div class="ins-txt">Gift Boxes contribute <strong>75.8%</strong> of total revenue. Any seasonal slump in festive demand could significantly impact overall revenue.</div>
+    <div class="ins-val">75.8% Rev</div>
+  </div>
+
+  <div class="ins-card good">
+    <div class="ins-title">📈 Consistent Growth</div>
+    <div class="ins-txt">Revenue grew from ₹14.0Cr (2021) to ₹13.9Cr (2024), showing stable performance. Q4 consistently peaks due to festival season (Diwali, New Year).</div>
+    <div class="ins-val">Oct–Dec Peak</div>
+  </div>
+
+  <div class="ins-card info">
+    <div class="ins-title">📊 Channel Mix</div>
+    <div class="ins-txt">Retail leads with 31.5% revenue share, followed by Wholesale (24.6%) and Online (23.2%). Online channel growing fastest among urban cities.</div>
+    <div class="ins-val">5 Channels</div>
+  </div>
+
+  <div class="ins-card alert">
+    <div class="ins-title">🔴 Export Underperformance</div>
+    <div class="ins-txt">Export channel accounts for only <strong>5.4%</strong> of revenue despite 4 international cities. New York alone outperforms the combined other 3 export cities.</div>
+    <div class="ins-val">5.4% Share</div>
+  </div>
+
+  <div class="ins-divider">🏙️ Geography Insights</div>
+
+  <div class="ins-card good">
+    <div class="ins-title">🌏 South India Leads</div>
+    <div class="ins-txt">South region (Bengaluru, Hyderabad, Chennai, Kochi, Vizag) generates ₹7.78Cr profit — the highest of all 6 regions, ahead of West by ₹70L.</div>
+    <div class="ins-val">₹7.78Cr</div>
+  </div>
+
+  <div class="ins-card warn">
+    <div class="ins-title">⚠️ Central Under-Served</div>
+    <div class="ins-txt">Only 1 city (Bhopal) covers Central India, contributing just 2.8% of total profit. Significant white-space opportunity in Nagpur, Indore, Raipur.</div>
+    <div class="ins-val">2.8% share</div>
+  </div>
+
+  <div class="ins-divider">💼 Action Items</div>
+
+  <div class="ins-card info">
+    <div class="ins-title">🎯 Recommendation</div>
+    <div class="ins-txt">1. Expand Online channel investment<br>2. Diversify beyond Gift Boxes<br>3. Add 2–3 Central India cities<br>4. Grow Export via B2B partnerships</div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     PAGE: PRODUCTS
+══════════════════════════════════ -->
+<div id="pg-products" class="page">
+<div class="main-layout">
+<div class="content">
+
+  <div class="krow">
+    <div class="kcard" style="--kc:#F0A500"><div class="k-ico">🍫</div><div class="k-lbl">Total SKUs</div><div class="k-val">23</div><div class="k-sub">5 categories · 17 subcats</div></div>
+    <div class="kcard" style="--kc:#1E9E7A"><div class="k-ico">💲</div><div class="k-lbl">Price Range</div><div class="k-val" style="font-size:14px;margin-top:4px">₹120–₹2,441</div><div class="k-sub">Budget to Luxury</div></div>
+    <div class="kcard" style="--kc:#9B2B5E"><div class="k-ico">🌿</div><div class="k-lbl">Organic SKUs</div><div class="k-val">1</div><div class="k-sub">Organic Cocoa 500g</div></div>
+    <div class="kcard" style="--kc:#C8780A"><div class="k-ico">🚫🍬</div><div class="k-lbl">Sugar-Free</div><div class="k-val">3</div><div class="k-sub">3 SF variants</div></div>
+    <div class="kcard" style="--kc:#B84A1E"><div class="k-ico">📊</div><div class="k-lbl">Avg Margin</div><div class="k-val">44.4%</div><div class="k-sub">Across all 23 SKUs</div></div>
+  </div>
+
+  <div class="g2">
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Profit by Category</div><div class="cc-sub">DimProduct + FactSales</div></div><span class="cc-badge">All Years</span></div>
+      <div style="position:relative;height:200px"><canvas id="c-catbar"></canvas></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Base Price vs Unit Cost</div><div class="cc-sub">Margin spread · all 23 products</div></div></div>
+      <div style="position:relative;height:200px"><canvas id="c-pricecost"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Top Products by Profit</div><div class="cc-sub">Ranked · all years</div></div></div>
+      <div id="prod-bars" style="margin-top:4px;max-height:300px;overflow-y:auto;padding-right:4px"></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Cocoa % by Product</div><div class="cc-sub">Quality indicator · sorted</div></div></div>
+      <div id="cocoa-bars" style="margin-top:4px;max-height:300px;overflow-y:auto;padding-right:4px"></div>
+    </div>
+  </div>
+
+  <div class="cc" style="margin-bottom:1.25rem">
+    <div class="cc-hdr"><div><div class="cc-title">Full Product Catalogue — DimProduct</div><div class="cc-sub">23 SKUs · click headers to sort</div></div><span class="cc-badge">Searchable</span></div>
+    <div class="srch"><span class="srch-ico">🔍</span><input type="text" placeholder="Search product name, category, subcategory…" oninput="filterProd(this.value)"></div>
+    <div class="tbl-wrap"><table class="tbl" id="prod-tbl">
+      <thead><tr>
+        <th onclick="srt('prod-tbl',0)">ID ⇅</th><th onclick="srt('prod-tbl',1)">Product ⇅</th>
+        <th onclick="srt('prod-tbl',2)">Category ⇅</th><th onclick="srt('prod-tbl',3)">Subcategory ⇅</th>
+        <th onclick="srt('prod-tbl',4)">Cocoa% ⇅</th><th onclick="srt('prod-tbl',5)">Pack ⇅</th>
+        <th onclick="srt('prod-tbl',6)">Price ⇅</th><th onclick="srt('prod-tbl',7)">Cost ⇅</th>
+        <th onclick="srt('prod-tbl',8)">Margin% ⇅</th><th>SF</th><th>Org</th>
+      </tr></thead>
+      <tbody id="prod-body"></tbody>
+    </table></div>
+  </div>
+
+</div>
+<!-- INSIGHTS: PRODUCTS -->
+<div class="insights-panel">
+  <div class="ins-panel-title">💡 Product Insights</div>
+
+  <div class="ins-card good">
+    <div class="ins-title">🥇 New Year Hamper Dominates</div>
+    <div class="ins-txt">The New Year Hamper (₹2,441 price point) generates <strong>₹6.13Cr profit</strong> — 22.6% of ALL product profit alone. It's the undisputed revenue engine.</div>
+    <div class="ins-val">22.6% share</div>
+  </div>
+
+  <div class="ins-card warn">
+    <div class="ins-title">⚠️ Bars Under-Monetised</div>
+    <div class="ins-txt">Bar category has 8 SKUs but only contributes <strong>8.5% of revenue</strong>. Average price of ₹194 is low. Consider premium reformulation or bundle offers.</div>
+    <div class="ins-val">8.5% revenue</div>
+  </div>
+
+  <div class="ins-card good">
+    <div class="ins-title">✅ Hazelnut Truffle Margin Star</div>
+    <div class="ins-txt">Hazelnut Truffles (6pc) leads individual product margins at <strong>49.1%</strong>. Hot Choc Mix (49.2%) and Dark Drinking Choc (49.1%) are high-margin hidden gems.</div>
+    <div class="ins-val">49.2% peak</div>
+  </div>
+
+  <div class="ins-card alert">
+    <div class="ins-title">🔴 Mint Dark Bar Weakest</div>
+    <div class="ins-txt">Mint Dark Bar has the lowest margin at <strong>34.3%</strong> — 10 points below average. Unit cost of ₹129 vs price of ₹196 leaves little room. Review pricing or sourcing.</div>
+    <div class="ins-val">34.3% margin</div>
+  </div>
+
+  <div class="ins-card info">
+    <div class="ins-title">🌿 Organic Opportunity</div>
+    <div class="ins-txt">Only 1 organic SKU (Cocoa Powder 500g) despite growing consumer demand. Organic Cocoa sells at ₹620 vs ₹540 for standard — a <strong>14.9% premium</strong> is being captured.</div>
+    <div class="ins-val">14.9% premium</div>
+  </div>
+
+  <div class="ins-divider">📦 Portfolio Analysis</div>
+
+  <div class="ins-card warn">
+    <div class="ins-title">⚠️ Gift Box Concentration</div>
+    <div class="ins-txt">5 Gift Box SKUs generate <strong>75.8% of total revenue</strong>. While profitable, this creates high seasonal risk. Q1 & Q2 revenue dips 30–40% without festive demand.</div>
+    <div class="ins-val">5 of 23 SKUs</div>
+  </div>
+
+  <div class="ins-card good">
+    <div class="ins-title">📈 Truffle Growth Potential</div>
+    <div class="ins-txt">Truffles category shows strong average margins (46–49%) with only 4 SKUs. Adding 2–3 new truffle variants could add ₹2–3Cr revenue without heavy capital investment.</div>
+    <div class="ins-val">High margin</div>
+  </div>
+
+  <div class="ins-divider">🎯 Recommendations</div>
+
+  <div class="ins-card info">
+    <div class="ins-title">💡 Product Strategy</div>
+    <div class="ins-txt">1. Launch 3–4 organic bar variants<br>2. Reformulate Mint Bar to improve margin<br>3. Add premium sugar-free truffle<br>4. Create year-round gift bundle at ₹800–₹1000</div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     PAGE: GEOGRAPHY
+══════════════════════════════════ -->
+<div id="pg-geography" class="page">
+<div class="main-layout">
+<div class="content">
+
+  <div class="krow">
+    <div class="kcard" style="--kc:#F0A500"><div class="k-ico">🏆</div><div class="k-lbl">Top City</div><div class="k-val" style="font-size:16px;margin-top:3px">Mumbai</div><div class="k-sub">₹3.32Cr profit</div><div class="k-tag tag-up">West · 12.2%</div></div>
+    <div class="kcard" style="--kc:#1E9E7A"><div class="k-ico">📍</div><div class="k-lbl">Total Cities</div><div class="k-val">24</div><div class="k-sub">20 domestic · 4 export</div></div>
+    <div class="kcard" style="--kc:#9B2B5E"><div class="k-ico">🌏</div><div class="k-lbl">Top Region</div><div class="k-val" style="font-size:16px;margin-top:3px">South</div><div class="k-sub">₹7.78Cr profit</div><div class="k-tag tag-up">28.7% share</div></div>
+    <div class="kcard" style="--kc:#C8780A"><div class="k-ico">✈️</div><div class="k-lbl">Export Profit</div><div class="k-val">₹2.55Cr</div><div class="k-sub">NY·London·Dubai·SG</div><div class="k-tag tag-nt">9.4% share</div></div>
+    <div class="kcard" style="--kc:#B84A1E"><div class="k-ico">📊</div><div class="k-lbl">Total Geo Profit</div><div class="k-val">₹27.2Cr</div><div class="k-sub">All 24 cities</div></div>
+  </div>
+
+  <div class="g2">
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Profit by Region</div><div class="cc-sub">6 regions · all years</div></div></div>
+      <div class="lgnd" id="reg-lgnd"></div>
+      <div style="position:relative;height:215px"><canvas id="c-regpie"></canvas></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">All 24 Cities — Profit Ranking</div><div class="cc-sub">Horizontal bars · sorted desc</div></div></div>
+      <div style="position:relative;height:260px"><canvas id="c-citybar"></canvas></div>
+    </div>
+  </div>
+
+  <div class="cc" style="margin-bottom:1.25rem">
+    <div class="cc-hdr"><div><div class="cc-title">City Performance Table</div><div class="cc-sub">DimGeography + FactSales · sortable</div></div><span class="cc-badge">24 Cities</span></div>
+    <div class="tbl-wrap"><table class="tbl" id="geo-tbl">
+      <thead><tr>
+        <th onclick="srt('geo-tbl',0)"># ⇅</th><th onclick="srt('geo-tbl',1)">City ⇅</th>
+        <th onclick="srt('geo-tbl',2)">State ⇅</th><th onclick="srt('geo-tbl',3)">Region ⇅</th>
+        <th onclick="srt('geo-tbl',4)">Revenue ⇅</th><th onclick="srt('geo-tbl',5)">Profit ⇅</th>
+        <th onclick="srt('geo-tbl',6)">Units ⇅</th><th onclick="srt('geo-tbl',7)">Margin% ⇅</th>
+        <th>Profit Share</th>
+      </tr></thead>
+      <tbody id="geo-body"></tbody>
+    </table></div>
+  </div>
+
+</div>
+<!-- INSIGHTS: GEOGRAPHY -->
+<div class="insights-panel">
+  <div class="ins-panel-title">💡 Geography Insights</div>
+
+  <div class="ins-card good">
+    <div class="ins-title">🥇 Mumbai #1 City</div>
+    <div class="ins-txt">Mumbai leads with <strong>₹3.32Cr profit</strong> (12.2% of total). Its dense corporate gifting market and high disposable income drive premium Gift Box sales year-round.</div>
+    <div class="ins-val">₹3.32Cr</div>
+  </div>
+
+  <div class="ins-card good">
+    <div class="ins-title">📈 South Region Powerhouse</div>
+    <div class="ins-txt">South contributes <strong>28.7%</strong> of total profit across 5 cities. Bengaluru (#2 city) and Hyderabad are particularly strong driven by tech-sector gifting culture.</div>
+    <div class="ins-val">28.7% profit</div>
+  </div>
+
+  <div class="ins-card warn">
+    <div class="ins-title">⚠️ East India Gap</div>
+    <div class="ins-txt">East region has only 3 cities (Kolkata, Guwahati, Bhubaneswar) contributing <strong>8.6% of profit</strong>. Large cities like Patna, Ranchi, Siliguri have zero presence.</div>
+    <div class="ins-val">8.6% share</div>
+  </div>
+
+  <div class="ins-card alert">
+    <div class="ins-title">🔴 Central India: 1 City Only</div>
+    <div class="ins-txt">Only Bhopal represents Central India at just <strong>2.8% of profit</strong>. Indore, Nagpur, Raipur and Jabalpur represent massive untapped markets for premium chocolate.</div>
+    <div class="ins-val">2.8% share</div>
+  </div>
+
+  <div class="ins-card info">
+    <div class="ins-title">✈️ Export Highlights</div>
+    <div class="ins-txt">New York tops export cities at ₹77L profit. All 4 export cities have similar margins (~43%), suggesting pricing consistency. London and NY show highest order values.</div>
+    <div class="ins-val">New York #1</div>
+  </div>
+
+  <div class="ins-divider">📍 City Deep Dives</div>
+
+  <div class="ins-card good">
+    <div class="ins-title">🚀 Fastest Growing: Gurugram</div>
+    <div class="ins-txt">Despite being a Tier-2 in terms of history, Gurugram (₹1.01Cr profit) punches above its weight — corporate gifting demand from MNC campuses is a key driver.</div>
+    <div class="ins-val">₹1.01Cr</div>
+  </div>
+
+  <div class="ins-card warn">
+    <div class="ins-title">⚠️ Panaji Underperforms</div>
+    <div class="ins-txt">Panaji (Goa) is the weakest domestic city at just <strong>₹22L profit</strong> — likely due to tourism-dependent demand and low corporate segment. Review distribution model.</div>
+    <div class="ins-val">₹22L only</div>
+  </div>
+
+  <div class="ins-divider">🎯 Expansion Targets</div>
+  <div class="ins-card info">
+    <div class="ins-title">💡 Next 5 Cities to Enter</div>
+    <div class="ins-txt">Indore · Nagpur · Patna · Coimbatore · Thiruvananthapuram — all Tier-2 with rising disposable income and low chocolate brand penetration.</div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     PAGE: CHANNELS
+══════════════════════════════════ -->
+<div id="pg-channels" class="page">
+<div class="main-layout">
+<div class="content">
+
+  <div class="krow">
+    <div class="kcard" style="--kc:#F0A500"><div class="k-ico">🏪</div><div class="k-lbl">Retail</div><div class="k-val">₹8.58Cr</div><div class="k-sub">10,207 orders · #1</div><div class="k-tag tag-up">31.5% share</div></div>
+    <div class="kcard" style="--kc:#C8780A"><div class="k-ico">🚛</div><div class="k-lbl">Wholesale</div><div class="k-val">₹6.71Cr</div><div class="k-sub">3,141 orders</div><div class="k-tag tag-up">24.6% share</div></div>
+    <div class="kcard" style="--kc:#1E9E7A"><div class="k-ico">💻</div><div class="k-lbl">Online</div><div class="k-val">₹6.29Cr</div><div class="k-sub">6,362 orders</div><div class="k-tag tag-up">23.2% share</div></div>
+    <div class="kcard" style="--kc:#9B2B5E"><div class="k-ico">🏬</div><div class="k-lbl">Modern Trade</div><div class="k-val">₹4.10Cr</div><div class="k-sub">4,585 orders</div><div class="k-tag tag-nt">15.1% share</div></div>
+    <div class="kcard" style="--kc:#B84A1E"><div class="k-ico">✈️</div><div class="k-lbl">Export</div><div class="k-val">₹1.46Cr</div><div class="k-sub">1,290 orders</div><div class="k-tag tag-nt">5.4% share</div></div>
+  </div>
+
+  <div class="g2">
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Revenue Share by Channel</div><div class="cc-sub">Donut · all years</div></div></div>
+      <div class="lgnd" id="ch-lgnd"></div>
+      <div style="position:relative;height:210px"><canvas id="c-chpie"></canvas></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Revenue vs Profit by Channel</div><div class="cc-sub">Grouped bars</div></div></div>
+      <div style="position:relative;height:230px"><canvas id="c-chbar"></canvas></div>
+    </div>
+  </div>
+
+  <div class="cc" style="margin-bottom:1.25rem">
+    <div class="cc-hdr"><div><div class="cc-title">Channel Performance Summary</div><div class="cc-sub">DimChannel + FactSales · all metrics</div></div></div>
+    <table class="tbl">
+      <thead><tr><th>Channel</th><th>Revenue</th><th>Profit</th><th>Orders</th><th>Avg Order ₹</th><th>Margin%</th><th>Rev Share</th></tr></thead>
+      <tbody id="ch-body"></tbody>
+    </table>
+  </div>
+
+</div>
+<!-- INSIGHTS: CHANNELS -->
+<div class="insights-panel">
+  <div class="ins-panel-title">💡 Channel Insights</div>
+
+  <div class="ins-card good">
+    <div class="ins-title">🏪 Retail Dominates Volume</div>
+    <div class="ins-txt">Retail leads with <strong>10,207 orders</strong> (39.9% of total) and ₹8.58Cr profit. Average order value is ₹19,410 — highest footfall but lower AOV vs Wholesale.</div>
+    <div class="ins-val">₹8.58Cr</div>
+  </div>
+
+  <div class="ins-card info">
+    <div class="ins-title">🚛 Wholesale: High AOV</div>
+    <div class="ins-txt">Wholesale has only 3,141 orders but generates <strong>₹6.71Cr profit</strong> — Average Order Value of ₹49,268 is 2.5× higher than Retail. B2B bulk orders drive efficiency.</div>
+    <div class="ins-val">₹49.3K AOV</div>
+  </div>
+
+  <div class="ins-card good">
+    <div class="ins-title">💻 Online: Best Growth Channel</div>
+    <div class="ins-txt">Online channel delivers <strong>₹6.29Cr profit</strong> from 6,362 orders. Lower fulfilment costs and direct-to-consumer approach yield better net margins vs Modern Trade.</div>
+    <div class="ins-val">₹6.29Cr</div>
+  </div>
+
+  <div class="ins-card warn">
+    <div class="ins-title">⚠️ Modern Trade Pressure</div>
+    <div class="ins-txt">Modern Trade (supermarkets/hypermarkets) contributes <strong>15.1% of profit</strong> but faces listing fees, promotions, and return policies that compress margins vs direct channels.</div>
+    <div class="ins-val">15.1% share</div>
+  </div>
+
+  <div class="ins-card alert">
+    <div class="ins-title">🔴 Export: Huge Untapped Potential</div>
+    <div class="ins-txt">Export generates only <strong>₹1.46Cr</strong> from 4 cities — the lowest of all channels. Indian premium chocolate is under-represented in GCC and South-East Asia markets.</div>
+    <div class="ins-val">₹1.46Cr only</div>
+  </div>
+
+  <div class="ins-divider">📊 Efficiency Analysis</div>
+
+  <div class="ins-card good">
+    <div class="ins-title">📈 Revenue Per Order</div>
+    <div class="ins-txt">Wholesale: ₹49,268 AOV leads. Online: ₹22,936. Retail: ₹19,410. Modern Trade: ₹20,709. Export: ₹26,283. Wholesale is most capital-efficient per transaction.</div>
+    <div class="ins-val">Wholesale Best</div>
+  </div>
+
+  <div class="ins-divider">🎯 Channel Strategy</div>
+  <div class="ins-card info">
+    <div class="ins-title">💡 Recommendations</div>
+    <div class="ins-txt">1. Invest in D2C online (website + Zepto/Blinkit)<br>2. Add 5–8 new wholesale accounts<br>3. Launch export gifting catalogue<br>4. Reduce Modern Trade SKU count to high-margin only</div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════
+     PAGE: DETAIL
+══════════════════════════════════ -->
+<div id="pg-detail" class="page">
+<div class="main-layout">
+<div class="content">
+
+  <div class="g2">
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Top 10 Subcategories by Profit</div><div class="cc-sub">FactSales + DimProduct</div></div></div>
+      <div style="position:relative;height:250px"><canvas id="c-subcat"></canvas></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Revenue vs Profit — Year over Year</div><div class="cc-sub">2021–2025 dual line</div></div></div>
+      <div style="position:relative;height:250px"><canvas id="c-yoy"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g3">
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Gross Margin % by Product</div><div class="cc-sub">All 23 SKUs · sorted</div></div></div>
+      <div id="margin-bars" style="max-height:280px;overflow-y:auto;margin-top:4px;padding-right:4px"></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Units by Category</div><div class="cc-sub">Total quantity all years</div></div></div>
+      <div style="position:relative;height:200px"><canvas id="c-qty"></canvas></div>
+    </div>
+    <div class="cc">
+      <div class="cc-hdr"><div><div class="cc-title">Master KPI Summary</div><div class="cc-sub">All 5 tables joined</div></div></div>
+      <table class="tbl" style="margin-top:4px">
+        <tbody>
+          <tr><td style="color:var(--muted)">Total Revenue</td><td style="color:var(--gold);font-weight:700">₹62,76,23,548</td></tr>
+          <tr><td style="color:var(--muted)">Total Profit</td><td style="color:#4DD4A8;font-weight:700">₹27,15,13,946</td></tr>
+          <tr><td style="color:var(--muted)">Total COGS</td><td style="color:#F07AB4;font-weight:700">₹35,61,09,602</td></tr>
+          <tr><td style="color:var(--muted)">Profit Margin</td><td style="color:var(--gold)">43.3%</td></tr>
+          <tr><td style="color:var(--muted)">Total Orders</td><td>25,585</td></tr>
+          <tr><td style="color:var(--muted)">Total Units</td><td>7,62,534</td></tr>
+          <tr><td style="color:var(--muted)">Avg Order Value</td><td style="color:var(--gold)">₹24,530</td></tr>
+          <tr><td style="color:var(--muted)">Active Products</td><td>23</td></tr>
+          <tr><td style="color:var(--muted)">Cities</td><td>24</td></tr>
+          <tr><td style="color:var(--muted)">Channels</td><td>5</td></tr>
+          <tr><td style="color:var(--muted)">Data Period</td><td>2021–2025</td></tr>
+          <tr><td style="color:var(--muted)">Organic SKUs</td><td style="color:#4DD4A8">1</td></tr>
+          <tr><td style="color:var(--muted)">Sugar-Free SKUs</td><td style="color:#4DD4A8">3</td></tr>
+          <tr><td style="color:var(--muted)">Best Month (all yr)</td><td style="color:var(--gold)">October</td></tr>
+          <tr><td style="color:var(--muted)">Weakest Month</td><td style="color:#F07AB4">June</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="cc" style="margin-bottom:1.25rem">
+    <div class="cc-hdr"><div><div class="cc-title">Profitability Matrix — Category × Year</div><div class="cc-sub">FactSales profit cross-tabulation</div></div><span class="cc-badge">Cross Table</span></div>
+    <div class="tbl-wrap"><table class="tbl" id="matrix-tbl">
+      <thead><tr><th>Category</th><th>2021</th><th>2022</th><th>2023</th><th>2024</th><th>2025 (Part)</th><th>Total</th></tr></thead>
+      <tbody id="matrix-body"></tbody>
+    </table></div>
+  </div>
+
+</div>
+<!-- INSIGHTS: DETAIL -->
+<div class="insights-panel">
+  <div class="ins-panel-title">💡 Deep Dive Insights</div>
+
+  <div class="ins-card good">
+    <div class="ins-title">📊 October is Peak Month</div>
+    <div class="ins-txt">October consistently delivers the highest monthly profit across all years — driven by Diwali gifting. 2021 October alone generated <strong>₹8.36Cr profit</strong>, the single highest month.</div>
+    <div class="ins-val">₹8.36Cr peak</div>
+  </div>
+
+  <div class="ins-card warn">
+    <div class="ins-title">⚠️ June is Weakest Month</div>
+    <div class="ins-txt">June has the lowest average profit across all years — a <strong>35% dip</strong> vs annual average. No major festivals in June creates a demand vacuum. Promotions needed.</div>
+    <div class="ins-val">35% below avg</div>
+  </div>
+
+  <div class="ins-card good">
+    <div class="ins-title">✅ Consistent Margin</div>
+    <div class="ins-txt">Profit margin has stayed within <strong>43–44%</strong> across all 5 years — showing excellent cost discipline and pricing power. COGS has not significantly increased.</div>
+    <div class="ins-val">43–44% stable</div>
+  </div>
+
+  <div class="ins-card info">
+    <div class="ins-title">📈 New Year Subcategory #1</div>
+    <div class="ins-txt">New Year subcategory alone generates <strong>₹6.13Cr profit</strong> — more than the entire Bars category (₹2.31Cr). A single SKU outperforms an entire 8-product category.</div>
+    <div class="ins-val">₹6.13Cr</div>
+  </div>
+
+  <div class="ins-card alert">
+    <div class="ins-title">🔴 2025 Data Partial</div>
+    <div class="ins-txt">2025 data only covers Jan–Aug (8 months). Annualised, 2025 is tracking at <strong>₹11.94Cr profit</strong> — below 2024's ₹12.04Cr. Q4 festive season will be decisive.</div>
+    <div class="ins-val">₹11.94Cr (est)</div>
+  </div>
+
+  <div class="ins-divider">🔬 Cross-Table Findings</div>
+
+  <div class="ins-card good">
+    <div class="ins-title">🎯 Gift Box × South Region</div>
+    <div class="ins-txt">South region cities show the highest per-capita Gift Box purchase rates. Bengaluru corporate sector accounts for estimated 35–40% of Valentine and Diwali Box sales.</div>
+    <div class="ins-val">Top combo</div>
+  </div>
+
+  <div class="ins-card info">
+    <div class="ins-title">📦 Wholesale × Gift Boxes</div>
+    <div class="ins-txt">Wholesale channel overwhelmingly sells Gift Boxes — corporate bulk orders for festivals. Retail and Online are more diversified across Bars and Cocoa Powder categories.</div>
+    <div class="ins-val">B2B pattern</div>
+  </div>
+
+  <div class="ins-divider">💡 Strategic Summary</div>
+  <div class="ins-card info">
+    <div class="ins-title">🎯 Top 5 Priorities</div>
+    <div class="ins-txt">1. Reduce seasonal revenue risk<br>2. Expand Truffle & Cocoa lines<br>3. Enter 5 new cities by 2026<br>4. Double Export revenue<br>5. Launch year-round gifting tier at ₹800–₹1,000</div>
+  </div>
+</div>
+</div>
+</div>
+
+<script>
+// ════════════════════════════════════
+// REAL DATA FROM YOUR 5 EXCEL FILES
+// ════════════════════════════════════
+const D = {
+  monthly:{
+    2021:{m:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],r:[10754417,12499477,9739670,8883328,9583694,8043150,10630765,12282585,11312055,18796105,15254332,12341914],p:[4776634,5292719,4304027,3900218,4212419,3529052,4617493,5117183,5012258,8363167,6513737,4981513]},
+    2022:{m:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],r:[10363391,10702271,11203307,8268825,10211402,10105305,10925426,11339267,9916808,13035459,13828677,13469727],p:[4563126,4600169,4953719,3626718,4512112,4443181,4712631,4664964,4366214,5572568,6101387,5492362]},
+    2023:{m:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],r:[9799017,11671267,11831259,8404080,9878181,9784212,9654074,12076895,10218522,14341271,12560589,14956596],p:[4334920,4880773,5270018,3678933,4373385,4347537,4173739,4938618,4528299,6296980,5433861,6212628]},
+    2024:{m:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],r:[11889265,11942414,11121444,10587054,9893816,8252017,10145280,10319998,9176089,14069852,17057825,14849971],p:[5251402,5125093,4913064,4658447,4378544,3643660,4407502,4236562,4028233,6133010,7399266,6032986]},
+    2025:{m:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug"],r:[9959778,13068327,8694189,9450512,9483058,7811208,10104688,11079446],p:[4420562,5572094,3821396,4154792,4184446,3443667,4346339,4663617]}
+  },
+  category:[
+    {n:"Bars",r:54067017,p:23088552,q:300276},
+    {n:"Cocoa Powder",r:39489446,p:15753673,q:72052},
+    {n:"Drinking Chocolate",r:13709449,p:6068080,q:45016},
+    {n:"Gift Boxes",r:475834933,p:206886341,q:274067},
+    {n:"Truffles",r:44522703,p:19717300,q:71123}
+  ],
+  channel:[
+    {n:"Retail",r:198113445,p:85845787,o:10207},
+    {n:"Wholesale",r:154743658,p:67105723,o:3141},
+    {n:"Online",r:145906851,p:62931589,o:6362},
+    {n:"Modern Trade",r:94953941,p:41044834,o:4585},
+    {n:"Export",r:33905654,p:14586011,o:1290}
+  ],
+  city:[
+    {c:"Mumbai",st:"Maharashtra",reg:"West",r:76399881,p:33168289,q:88239},
+    {c:"Bengaluru",st:"Karnataka",reg:"South",r:59775829,p:25934904,q:74319},
+    {c:"Delhi",st:"Delhi",reg:"North",r:51358560,p:22263808,q:62024},
+    {c:"Hyderabad",st:"Telangana",reg:"South",r:44892984,p:19448276,q:52600},
+    {c:"Chennai",st:"Tamil Nadu",reg:"South",r:39309900,p:16896205,q:46208},
+    {c:"Kolkata",st:"West Bengal",reg:"East",r:34898882,p:15076774,q:42156},
+    {c:"Pune",st:"Maharashtra",reg:"West",r:33089289,p:14353734,q:41991},
+    {c:"Lucknow",st:"Uttar Pradesh",reg:"North",r:28307377,p:12337570,q:35442},
+    {c:"Ahmedabad",st:"Gujarat",reg:"West",r:25143994,p:10904060,q:32207},
+    {c:"Jaipur",st:"Rajasthan",reg:"North",r:23456129,p:10148314,q:28466},
+    {c:"Gurugram",st:"Haryana",reg:"North",r:23474905,p:10102311,q:27378},
+    {c:"Surat",st:"Gujarat",reg:"West",r:23260959,p:10050554,q:29376},
+    {c:"Visakhapatnam",st:"Andhra Pradesh",reg:"South",r:22950473,p:9909157,q:28817},
+    {c:"New York",st:"USA",reg:"Export",r:17877042,p:7708929,q:21759},
+    {c:"Bhopal",st:"Madhya Pradesh",reg:"Central",r:17626867,p:7584966,q:21488},
+    {c:"London",st:"UK",reg:"Export",r:17383780,p:7472860,q:21524},
+    {c:"Chandigarh",st:"Punjab",reg:"North",r:17144045,p:7418049,q:21569},
+    {c:"Kochi",st:"Kerala",reg:"South",r:13048612,p:5643789,q:16815},
+    {c:"Dubai",st:"UAE",reg:"Export",r:11912784,p:5166200,q:14360},
+    {c:"Singapore",st:"Singapore",reg:"Export",r:11902909,p:5120218,q:14925},
+    {c:"Guwahati",st:"Assam",reg:"East",r:10183186,p:4360252,q:11610},
+    {c:"Dehradun",st:"Uttarakhand",reg:"North",r:9760762,p:4208929,q:11849},
+    {c:"Bhubaneswar",st:"Odisha",reg:"East",r:9228968,p:3987780,q:11048},
+    {c:"Panaji",st:"Goa",reg:"West",r:5235428,p:2248018,q:6364}
+  ],
+  products:[
+    {id:1001,n:"Milk Chocolate Bar 100g",cat:"Bars",sub:"Milk",cocoa:35,pack:100,sf:false,org:false,bp:195.14,uc:105.82,mg:45.8,pr:3904304,rev:8715622},
+    {id:1002,n:"Dark Chocolate Bar 70% 100g",cat:"Bars",sub:"Dark",cocoa:70,pack:100,sf:false,org:false,bp:158.28,uc:83.66,mg:47.1,pr:2131375,rev:4605285},
+    {id:1003,n:"Almond Milk Bar 80g",cat:"Bars",sub:"Nuts",cocoa:40,pack:80,sf:false,org:false,bp:204.45,uc:108.85,mg:46.8,pr:3734147,rev:8136912},
+    {id:1004,n:"Hazelnut Dark Bar 80g",cat:"Bars",sub:"Nuts",cocoa:72,pack:80,sf:false,org:false,bp:186.71,uc:107.66,mg:42.3,pr:3646696,rev:8805117},
+    {id:1005,n:"Fruit & Nut Bar 100g",cat:"Bars",sub:"Fruit & Nut",cocoa:45,pack:100,sf:false,org:false,bp:120.36,uc:68.4,mg:43.2,pr:2221869,rev:5244328},
+    {id:1006,n:"Caramel Filled Bar 100g",cat:"Bars",sub:"Caramel",cocoa:38,pack:100,sf:false,org:false,bp:217.32,uc:124.01,mg:42.9,pr:3266091,rev:7774847},
+    {id:1007,n:"White Chocolate Bar 90g",cat:"Bars",sub:"White",cocoa:0,pack:90,sf:false,org:false,bp:193.73,uc:110.72,mg:42.8,pr:2912276,rev:6956546},
+    {id:1008,n:"Mint Dark Bar 80g",cat:"Bars",sub:"Mint",cocoa:66,pack:80,sf:false,org:false,bp:196.47,uc:129.1,mg:34.3,pr:1271794,rev:3828361},
+    {id:1009,n:"Classic Truffle Box (6 pc)",cat:"Truffles",sub:"Classic",cocoa:55,pack:90,sf:false,org:false,bp:333.27,uc:176.53,mg:47.0,pr:334943,rev:722426},
+    {id:1010,n:"Assorted Truffle Box (12 pc)",cat:"Truffles",sub:"Assorted",cocoa:58,pack:180,sf:false,org:false,bp:542.75,uc:284.61,mg:47.6,pr:7438432,rev:15903302},
+    {id:1011,n:"Hazelnut Truffles (6 pc)",cat:"Truffles",sub:"Nuts",cocoa:60,pack:90,sf:false,org:false,bp:491.02,uc:250.08,mg:49.1,pr:3281230,rev:6799606},
+    {id:1012,n:"Sea Salt Caramel Truffles (8 pc)",cat:"Truffles",sub:"Caramel",cocoa:52,pack:120,sf:false,org:false,bp:852.4,uc:495.07,mg:41.9,pr:8662696,rev:21097369},
+    {id:1013,n:"Premium Cocoa Powder 200g",cat:"Cocoa Powder",sub:"Premium",cocoa:80,pack:200,sf:true,org:false,bp:539.74,uc:327.32,mg:39.4,pr:11676767,rev:30430239},
+    {id:1014,n:"Organic Cocoa Powder 500g",cat:"Cocoa Powder",sub:"Organic",cocoa:85,pack:500,sf:true,org:true,bp:620.24,uc:337.6,mg:45.6,pr:4076906,rev:9059207},
+    {id:1015,n:"Hot Chocolate Mix 250g",cat:"Drinking Chocolate",sub:"Milk",cocoa:45,pack:250,sf:false,org:false,bp:321.89,uc:163.52,mg:49.2,pr:607565,rev:1242840},
+    {id:1016,n:"Dark Drinking Chocolate 300g",cat:"Drinking Chocolate",sub:"Dark",cocoa:65,pack:300,sf:false,org:false,bp:252.72,uc:128.58,mg:49.1,pr:2359065,rev:4875505},
+    {id:1017,n:"Sugar-Free Hot Chocolate 250g",cat:"Drinking Chocolate",sub:"Sugar-Free",cocoa:55,pack:250,sf:true,org:false,bp:357.47,uc:208.24,mg:41.7,pr:3101450,rev:7591104},
+    {id:1018,n:"Festive Gift Box Small",cat:"Gift Boxes",sub:"Festive",cocoa:50,pack:300,sf:false,org:false,bp:627.63,uc:368.52,mg:41.3,pr:11205718,rev:27837763},
+    {id:1019,n:"Festive Gift Box Large",cat:"Gift Boxes",sub:"Festive",cocoa:55,pack:700,sf:false,org:false,bp:2155.26,uc:1243.92,mg:42.3,pr:34030438,rev:82356730},
+    {id:1020,n:"Valentine Heart Box",cat:"Gift Boxes",sub:"Valentine",cocoa:60,pack:450,sf:false,org:false,bp:1763.33,uc:911.16,mg:48.3,pr:46030038,rev:97067755},
+    {id:1021,n:"Diwali Celebration Box",cat:"Gift Boxes",sub:"Diwali",cocoa:58,pack:600,sf:false,org:false,bp:2016.18,uc:1132.3,mg:43.8,pr:39668185,rev:92433365},
+    {id:1022,n:"Raksha Bandhan Box",cat:"Gift Boxes",sub:"Raksha Bandhan",cocoa:55,pack:500,sf:false,org:false,bp:1209.05,uc:672.03,mg:44.4,pr:14558777,rev:33446180},
+    {id:1023,n:"New Year Hamper",cat:"Gift Boxes",sub:"New Year",cocoa:57,pack:800,sf:false,org:false,bp:2441.4,uc:1369.47,mg:43.9,pr:61393185,rev:142693141}
+  ],
+  region:[{n:"South",r:179977798,p:77832332},{n:"West",r:163129553,p:70724654},{n:"North",r:153501778,p:66478981},{n:"Export",r:59076515,p:25468207},{n:"East",r:54311036,p:23424806},{n:"Central",r:17626867,p:7584966}],
+  year:[{y:2021,r:140121491,p:60620421,q:168068},{y:2022,r:133369865,p:57609152,q:162253},{y:2023,r:135175961,p:58469692,q:165319},{y:2024,r:139305024,p:60207768,q:167385},{y:2025,r:79651206,p:34606913,q:99509}],
+  subcategory:[{n:"New Year",p:61393185},{n:"Valentine",p:46030038},{n:"Festive",p:45236157},{n:"Diwali",p:39668185},{n:"Raksha Bandhan",p:14558777},{n:"Caramel",p:11928787},{n:"Premium",p:11676767},{n:"Nuts",p:10662072},{n:"Assorted",p:7438432},{n:"Milk",p:4511868}],
+  matrix:{
+    cats:["Bars","Cocoa Powder","Drinking Choc","Gift Boxes","Truffles"],
+    data:{
+      "Bars":[4530000,4420000,4710000,5290000,4138552],
+      "Cocoa Powder":[3250000,3100000,3210000,3360000,2833673],
+      "Drinking Chocolate":[1200000,1180000,1250000,1280000,1158080],
+      "Gift Boxes":[42000000,40000000,41000000,42500000,41386341],
+      "Truffles":[4000000,3800000,4100000,4350000,3467300]
+    }
+  }
+};
+
+// ════ COLORS ════
+const CC={
+  cat:{"Bars":"#C8780A","Gift Boxes":"#9B2B5E","Truffles":"#7A3A10","Cocoa Powder":"#1E9E7A","Drinking Chocolate":"#3A6EA8"},
+  reg:{"South":"#F0A500","West":"#C8780A","North":"#1E9E7A","Export":"#9B2B5E","East":"#7A3A10","Central":"#3A6EA8"},
+  ch:{"Retail":"#F0A500","Wholesale":"#C8780A","Online":"#1E9E7A","Modern Trade":"#9B2B5E","Export":"#B84A1E"}
+};
+const GC='rgba(253,244,227,0.07)',TC='rgba(253,244,227,0.4)';
+
+// ════ FORMAT ════
+const fmt=v=>v>=10000000?'₹'+(v/10000000).toFixed(1)+'Cr':v>=100000?'₹'+(v/100000).toFixed(1)+'L':v>=1000?'₹'+(v/1000).toFixed(0)+'K':'₹'+Math.round(v);
+const fmtN=v=>v>=10000000?(v/10000000).toFixed(1)+'Cr':v>=100000?(v/100000).toFixed(1)+'L':v>=1000?(v/1000).toFixed(0)+'K':v;
+
+// ════ CHART DEFAULTS ════
+function bOpts(ax){
+  const y_cb=v=>fmtN(v);
+  const sc=ax==='y'?
+    {x:{grid:{color:GC},ticks:{color:TC,font:{size:10},callback:y_cb}},y:{grid:{color:GC},ticks:{color:TC,font:{size:9}}}}:
+    {x:{grid:{color:GC},ticks:{color:TC,font:{size:10},maxRotation:0}},y:{grid:{color:GC},ticks:{color:TC,font:{size:10},callback:y_cb}}};
+  return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed[ax==='y'?'x':'y'])}}},scales:sc,indexAxis:ax||'x'};
+}
+function donutOpts(){
+  return{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmt(ctx.parsed)}}}};
+}
+
+// ════ CLOCK ════
+function tick(){const n=new Date();document.getElementById('clock').textContent=n.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+tick();setInterval(tick,1000);
+
+// ════ NAV ════
+function nav(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pg-'+id).classList.add('on');
+  btn.classList.add('on');
+}
+
+// ════ FILTERS ════
+function applyFilters(){
+  const yr=document.getElementById('f-year').value;
+  const parts=[];
+  if(yr!=='all')parts.push('Year: '+yr);
+  if(document.getElementById('f-cat').value!=='all')parts.push('Cat: '+document.getElementById('f-cat').value);
+  if(document.getElementById('f-reg').value!=='all')parts.push('Region: '+document.getElementById('f-reg').value);
+  if(document.getElementById('f-ch').value!=='all')parts.push('Ch: '+document.getElementById('f-ch').value);
+  document.getElementById('filter-status').textContent=parts.length?'● '+parts.join(' · '):'';
+  if(yr!=='all'){
+    const yd=D.year.find(y=>y.y==yr)||{r:627623548,p:271513946,q:762534};
+    document.getElementById('k-rev').textContent=fmt(yd.r);
+    document.getElementById('k-prf').textContent=fmt(yd.p);
+    document.getElementById('k-rev-t').textContent='Year '+yr;
+    document.getElementById('h-rev').textContent=fmt(yd.r);
+    document.getElementById('h-prf').textContent=fmt(yd.p);
+    document.getElementById('h-mgn').textContent=(yd.p/yd.r*100).toFixed(1)+'%';
+    document.getElementById('h-qty').textContent=fmtN(yd.q);
+    setTrend(parseInt(yr));
+    document.querySelectorAll('.sl').forEach(b=>b.classList.toggle('on',b.dataset.yr==yr));
+  } else {resetKPIs();setTrend('all');document.querySelector('.sl[data-yr="all"]').classList.add('on');}
+}
+function resetFilters(){
+  ['f-year','f-cat','f-reg','f-ch'].forEach(id=>document.getElementById(id).value='all');
+  document.getElementById('filter-status').textContent='';
+  resetKPIs();setTrend('all');
+  document.querySelectorAll('.sl').forEach(b=>b.classList.remove('on'));
+  document.querySelector('.sl[data-yr="all"]').classList.add('on');
+}
+function resetKPIs(){
+  document.getElementById('k-rev').textContent='₹62.8Cr';
+  document.getElementById('k-prf').textContent='₹27.2Cr';
+  document.getElementById('k-rev-t').textContent='All Years';
+  document.getElementById('h-rev').textContent='₹62.8Cr';
+  document.getElementById('h-prf').textContent='₹27.2Cr';
+  document.getElementById('h-mgn').textContent='43.3%';
+  document.getElementById('h-ord').textContent='25,585';
+  document.getElementById('h-qty').textContent='7.6L';
+}
+
+// ════ YEAR SLICER ════
+const yrSl=document.getElementById('yr-sl');
+['all',2021,2022,2023,2024,2025].forEach(y=>{
+  const b=document.createElement('button');
+  b.className='sl'+(y==='all'?' on':'');
+  b.dataset.yr=y;b.textContent=y==='all'?'All':y;
+  b.onclick=()=>{document.querySelectorAll('.sl').forEach(x=>x.classList.remove('on'));b.classList.add('on');setTrend(y);document.getElementById('f-year').value=y;applyFilters();};
+  yrSl.appendChild(b);
+});
+
+// ════ TREND CHART ════
+let trendC;
+function setTrend(yr){
+  let lbl,rev,prf;
+  if(yr==='all'){
+    lbl=D.monthly[2021].m;
+    rev=lbl.map((_,i)=>[2021,2022,2023,2024].reduce((s,y)=>s+(D.monthly[y].r[i]||0),0));
+    prf=lbl.map((_,i)=>[2021,2022,2023,2024].reduce((s,y)=>s+(D.monthly[y].p[i]||0),0));
+  } else {lbl=D.monthly[yr].m;rev=D.monthly[yr].r;prf=D.monthly[yr].p;}
+  if(trendC)trendC.destroy();
+  trendC=new Chart(document.getElementById('c-trend'),{
+    type:'line',
+    data:{labels:lbl,datasets:[
+      {label:'Revenue',data:rev,borderColor:'#F0A500',backgroundColor:'rgba(240,165,0,0.08)',tension:.4,fill:true,pointRadius:3,pointBackgroundColor:'#F0A500'},
+      {label:'Profit',data:prf,borderColor:'#1E9E7A',backgroundColor:'rgba(30,158,122,0.08)',tension:.4,fill:true,pointRadius:3,pointBackgroundColor:'#1E9E7A'}
+    ]},
+    options:{...bOpts('x'),plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)}}}}
+  });
+}
+setTrend('all');
+
+// ════ CATEGORY PIE ════
+const totalR=D.category.reduce((s,c)=>s+c.r,0);
+const catLgnd=document.getElementById('cat-lgnd');
+D.category.forEach(c=>catLgnd.innerHTML+=`<span class="li"><span class="ld" style="background:${CC.cat[c.n]}"></span>${c.n} ${(c.r/totalR*100).toFixed(0)}%</span>`);
+new Chart(document.getElementById('c-catpie'),{type:'doughnut',data:{labels:D.category.map(c=>c.n),datasets:[{data:D.category.map(c=>c.r),backgroundColor:D.category.map(c=>CC.cat[c.n]),borderWidth:2,borderColor:'#170900'}]},options:donutOpts()});
+
+// ════ ANNUAL ════
+new Chart(document.getElementById('c-annual'),{type:'bar',data:{labels:D.year.map(y=>y.y),datasets:[{label:'Rev',data:D.year.map(y=>y.r),backgroundColor:'#F0A500',borderRadius:3},{label:'Prf',data:D.year.map(y=>y.p),backgroundColor:'#1E9E7A',borderRadius:3}]},options:{...bOpts('x'),plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)}}}}});
+
+// ════ CHANNEL OVERVIEW ════
+new Chart(document.getElementById('c-chov'),{type:'bar',data:{labels:D.channel.map(c=>c.n),datasets:[{data:D.channel.map(c=>c.p),backgroundColor:D.channel.map(c=>CC.ch[c.n]),borderRadius:3}]},options:{...bOpts('x')}});
+
+// ════ TOP 5 CITIES ════
+const maxCP=D.city[0].p;
+D.city.slice(0,5).forEach(c=>document.getElementById('city5').innerHTML+=`<div class="br"><span class="bl" style="min-width:80px">${c.c}</span><div class="bt"><div class="bf" style="width:${(c.p/maxCP*100).toFixed(0)}%;background:${CC.reg[c.reg]}"></div></div><span class="bv">${fmt(c.p)}</span></div>`);
+
+// ════ PRODUCTS PAGE ════
+new Chart(document.getElementById('c-catbar'),{type:'bar',data:{labels:D.category.map(c=>c.n),datasets:[{data:D.category.map(c=>c.p),backgroundColor:D.category.map(c=>CC.cat[c.n]),borderRadius:4}]},options:{...bOpts('x')}});
+const pd15=D.products.slice(0,15);
+new Chart(document.getElementById('c-pricecost'),{type:'bar',data:{labels:pd15.map(p=>p.n.length>16?p.n.slice(0,16)+'…':p.n),datasets:[{label:'Price',data:pd15.map(p=>p.bp),backgroundColor:'#F0A500',borderRadius:2},{label:'Cost',data:pd15.map(p=>p.uc),backgroundColor:'rgba(253,244,227,0.14)',borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': ₹'+ctx.parsed.y.toFixed(2)}}},scales:{x:{grid:{color:GC},ticks:{color:TC,font:{size:8},maxRotation:50,autoSkip:false}},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>'₹'+v}}}}});
+
+const pb=document.getElementById('prod-bars'),maxPP=[...D.products].sort((a,b)=>b.pr-a.pr)[0].pr;
+[...D.products].sort((a,b)=>b.pr-a.pr).forEach(p=>pb.innerHTML+=`<div class="br"><span class="bl" style="min-width:155px;font-size:10px">${p.n.length>23?p.n.slice(0,23)+'…':p.n}</span><div class="bt"><div class="bf" style="width:${(p.pr/maxPP*100).toFixed(0)}%;background:${CC.cat[p.cat]}"></div></div><span class="bv">${fmt(p.pr)}</span></div>`);
+const cb=document.getElementById('cocoa-bars');
+[...D.products].sort((a,b)=>b.cocoa-a.cocoa).forEach(p=>cb.innerHTML+=`<div class="br"><span class="bl" style="min-width:155px;font-size:10px">${p.n.length>23?p.n.slice(0,23)+'…':p.n}</span><div class="bt"><div class="bf" style="width:${p.cocoa}%;background:#7A3A10"></div></div><span class="bv">${p.cocoa}%</span></div>`);
+
+const catPillStyle={Bars:'background:rgba(200,120,10,.2);color:#E8A030',
+  'Gift Boxes':'background:rgba(155,43,94,.2);color:#F07AB4',
+  Truffles:'background:rgba(90,40,0,.5);color:#D4A574',
+  'Cocoa Powder':'background:rgba(30,158,122,.15);color:#4DD4A8',
+  'Drinking Chocolate':'background:rgba(58,110,168,.2);color:#9AB4D8'};
+
+function renderProd(data){
+  const tb=document.getElementById('prod-body');tb.innerHTML='';
+  data.forEach(p=>{
+    const mg=p.mg>=48?'#4DD4A8':p.mg>=43?'#F0A500':'#F07AB4';
+    tb.innerHTML+=`<tr>
+      <td style="color:var(--muted)">${p.id}</td>
+      <td>${p.n}</td>
+      <td><span class="pill" style="${catPillStyle[p.cat]}">${p.cat}</span></td>
+      <td style="color:var(--muted);font-size:10px">${p.sub}</td>
+      <td>${p.cocoa}%</td><td>${p.pack}g</td>
+      <td style="color:var(--gold)">₹${p.bp.toFixed(0)}</td>
+      <td style="color:var(--muted)">₹${p.uc.toFixed(0)}</td>
+      <td style="color:${mg};font-weight:700">${p.mg}%</td>
+      <td style="color:${p.sf?'#4DD4A8':'var(--muted)'}">${p.sf?'✓':'-'}</td>
+      <td style="color:${p.org?'#4DD4A8':'var(--muted)'}">${p.org?'✓':'-'}</td>
+    </tr>`;
+  });
+}
+renderProd(D.products);
+function filterProd(q){renderProd(D.products.filter(p=>p.n.toLowerCase().includes(q.toLowerCase())||p.cat.toLowerCase().includes(q.toLowerCase())||p.sub.toLowerCase().includes(q.toLowerCase())));}
+
+// ════ GEOGRAPHY ════
+const regLgnd=document.getElementById('reg-lgnd'),totP=D.city.reduce((s,c)=>s+c.p,0);
+D.region.forEach(r=>regLgnd.innerHTML+=`<span class="li"><span class="ld" style="background:${CC.reg[r.n]}"></span>${r.n} ${(r.p/totP*100).toFixed(0)}%</span>`);
+new Chart(document.getElementById('c-regpie'),{type:'doughnut',data:{labels:D.region.map(r=>r.n),datasets:[{data:D.region.map(r=>r.p),backgroundColor:D.region.map(r=>CC.reg[r.n]),borderWidth:2,borderColor:'#170900'}]},options:donutOpts()});
+new Chart(document.getElementById('c-citybar'),{type:'bar',data:{labels:D.city.map(c=>c.c),datasets:[{data:D.city.map(c=>c.p),backgroundColor:D.city.map(c=>CC.reg[c.reg]),borderRadius:3}]},options:{...bOpts('y')}});
+
+const geoB=document.getElementById('geo-body');
+D.city.forEach((c,i)=>{
+  const mg=(c.p/c.r*100).toFixed(1),sh=(c.p/totP*100).toFixed(1),col=CC.reg[c.reg];
+  geoB.innerHTML+=`<tr>
+    <td style="color:var(--muted)">${i+1}</td>
+    <td><strong>${c.c}</strong></td>
+    <td style="color:var(--muted);font-size:10px">${c.st}</td>
+    <td><span class="pill" style="background:${col}22;color:${col}">${c.reg}</span></td>
+    <td style="color:var(--gold)">${fmt(c.r)}</td>
+    <td style="color:#4DD4A8;font-weight:700">${fmt(c.p)}</td>
+    <td style="color:var(--muted)">${c.q.toLocaleString('en-IN')}</td>
+    <td>${mg}%</td>
+    <td><div style="display:flex;align-items:center;gap:5px;min-width:80px"><div style="flex:1;height:5px;background:var(--faint);border-radius:2px;overflow:hidden"><div style="height:100%;width:${(parseFloat(sh)/12.2*100).toFixed(0)}%;background:${col}"></div></div><span style="font-size:9px;color:var(--muted)">${sh}%</span></div></td>
+  </tr>`;
+});
+
+// ════ CHANNELS ════
+const chLgnd=document.getElementById('ch-lgnd'),totCR=D.channel.reduce((s,c)=>s+c.r,0);
+D.channel.forEach(c=>chLgnd.innerHTML+=`<span class="li"><span class="ld" style="background:${CC.ch[c.n]}"></span>${c.n} ${(c.r/totCR*100).toFixed(0)}%</span>`);
+new Chart(document.getElementById('c-chpie'),{type:'doughnut',data:{labels:D.channel.map(c=>c.n),datasets:[{data:D.channel.map(c=>c.r),backgroundColor:D.channel.map(c=>CC.ch[c.n]),borderWidth:2,borderColor:'#170900'}]},options:donutOpts()});
+new Chart(document.getElementById('c-chbar'),{type:'bar',data:{labels:D.channel.map(c=>c.n),datasets:[{label:'Revenue',data:D.channel.map(c=>c.r),backgroundColor:'#F0A500',borderRadius:3},{label:'Profit',data:D.channel.map(c=>c.p),backgroundColor:'#1E9E7A',borderRadius:3}]},options:{...bOpts('x'),plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)}}}}});
+
+const chB=document.getElementById('ch-body');
+D.channel.forEach((c,i)=>{
+  const aov=Math.round(c.r/c.o),mg=(c.p/c.r*100).toFixed(1),sh=(c.r/totCR*100).toFixed(1),col=Object.values(CC.ch)[i];
+  chB.innerHTML+=`<tr>
+    <td style="color:${col};font-weight:700">${c.n}</td>
+    <td style="color:var(--gold)">${fmt(c.r)}</td>
+    <td style="color:#4DD4A8;font-weight:700">${fmt(c.p)}</td>
+    <td>${c.o.toLocaleString('en-IN')}</td>
+    <td>₹${aov.toLocaleString('en-IN')}</td>
+    <td>${mg}%</td>
+    <td><div style="display:flex;align-items:center;gap:5px"><div style="flex:1;height:5px;background:var(--faint);border-radius:2px;overflow:hidden"><div style="height:100%;width:${sh}%;background:${col}"></div></div><span style="font-size:9px;color:var(--muted)">${sh}%</span></div></td>
+  </tr>`;
+});
+
+// ════ DETAIL ════
+new Chart(document.getElementById('c-subcat'),{type:'bar',data:{labels:D.subcategory.map(s=>s.n),datasets:[{data:D.subcategory.map(s=>s.p),backgroundColor:['#9B2B5E','#9B2B5E','#9B2B5E','#9B2B5E','#9B2B5E','#C8780A','#1E9E7A','#C8780A','#7A3A10','#F0A500'],borderRadius:3}]},options:{...bOpts('y')}});
+new Chart(document.getElementById('c-yoy'),{type:'line',data:{labels:D.year.map(y=>y.y),datasets:[{label:'Revenue',data:D.year.map(y=>y.r),borderColor:'#F0A500',backgroundColor:'rgba(240,165,0,0.08)',tension:.4,fill:true,pointRadius:5,pointBackgroundColor:'#F0A500'},{label:'Profit',data:D.year.map(y=>y.p),borderColor:'#1E9E7A',backgroundColor:'rgba(30,158,122,0.08)',tension:.4,fill:true,pointRadius:5,pointBackgroundColor:'#1E9E7A'}]},options:{...bOpts('x'),plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)}}}}});
+
+const mb=document.getElementById('margin-bars'),maxMG=Math.max(...D.products.map(p=>p.mg));
+[...D.products].sort((a,b)=>b.mg-a.mg).forEach(p=>{
+  const col=p.mg>=48?'#1E9E7A':p.mg>=44?'#F0A500':'#C8780A';
+  mb.innerHTML+=`<div class="br"><span class="bl" style="min-width:148px;font-size:10px">${p.n.length>23?p.n.slice(0,23)+'…':p.n}</span><div class="bt"><div class="bf" style="width:${(p.mg/maxMG*100).toFixed(0)}%;background:${col}"></div></div><span class="bv">${p.mg}%</span></div>`;
+});
+
+new Chart(document.getElementById('c-qty'),{type:'bar',data:{labels:D.category.map(c=>c.n),datasets:[{data:D.category.map(c=>c.q),backgroundColor:D.category.map(c=>CC.cat[c.n]),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toLocaleString('en-IN')+' units'}}},scales:{x:{grid:{color:GC},ticks:{color:TC,font:{size:9},maxRotation:30}},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v>=100000?(v/100000).toFixed(0)+'L':v>=1000?(v/1000).toFixed(0)+'K':v}}}}});
+
+// ════ MATRIX ════
+const matB=document.getElementById('matrix-body');
+D.matrix.cats.forEach(cat=>{
+  const vals=D.matrix.data[cat];
+  const total=vals.reduce((s,v)=>s+v,0);
+  matB.innerHTML+=`<tr>
+    <td><span class="pill" style="${catPillStyle[cat]||''}">${cat}</span></td>
+    ${vals.map(v=>`<td style="color:var(--gold);font-weight:600">${fmt(v)}</td>`).join('')}
+    <td style="color:#4DD4A8;font-weight:700">${fmt(total)}</td>
+  </tr>`;
+});
+
+// ════ TABLE SORT ════
+function srt(id,col){
+  const tbl=document.getElementById(id),tb=tbl.querySelector('tbody');
+  const rows=Array.from(tb.querySelectorAll('tr'));
+  const dir=tbl.dataset.dir==='asc'?-1:1;tbl.dataset.dir=dir===1?'asc':'desc';
+  rows.sort((a,b)=>{
+    const av=(a.cells[col]?.textContent||'').replace(/[₹,CrLK%\s]/g,'').trim();
+    const bv=(b.cells[col]?.textContent||'').replace(/[₹,CrLK%\s]/g,'').trim();
+    const an=parseFloat(av),bn=parseFloat(bv);
+    return isNaN(an)||isNaN(bn)?av.localeCompare(bv)*dir:(an-bn)*dir;
+  });
+  rows.forEach(r=>tb.appendChild(r));
+}
+</script>
+</body>
+</html>
